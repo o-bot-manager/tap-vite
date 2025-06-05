@@ -1,18 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import {
-  useWebAppMainButton,
-  useWebAppPopup,
-  useWebAppViewport,
-} from 'vue-tg';
+import { useWebAppMainButton, useWebAppPopup, useWebAppViewport } from 'vue-tg';
 import Decimal from 'decimal.js';
 
-// Хуки Telegram WebApp
 const { showAlert } = useWebAppPopup();
 const webAppViewport = useWebAppViewport();
 const mainButton = useWebAppMainButton();
 
-// Тема Telegram
 const theme = ref<any>({});
 
 // Поля ввода
@@ -36,26 +30,14 @@ const result = ref<{
 } | null>(null);
 
 // Вспомогательные функции расчёта
-const calculateTotal = (a: number, b: number, c: number) =>
-    new Decimal(a).plus(b).plus(c);
-
-const calculateAverageSalaryPerDay = (
-    total: Decimal,
-    factDays: Decimal
-) =>
-    factDays.equals(0)
-        ? new Decimal(0)
-        : total.dividedBy(factDays).toDecimalPlaces(2, Decimal.ROUND_UP);
-
-const calculateSickLeavePayment = (
-    avg: Decimal,
-    factor: number,
-    days: number
-) => avg.times(new Decimal(factor * days)).toDecimalPlaces(2, Decimal.ROUND_UP);
+const calculateTotal = (a: number, b: number, c: number) => new Decimal(a).plus(b).plus(c);
+const calculateAverageSalaryPerDay = (total: Decimal, factDays: Decimal) =>
+    factDays.equals(0) ? new Decimal(0) : total.dividedBy(factDays).toDecimalPlaces(2, Decimal.ROUND_UP);
+const calculateSickLeavePayment = (avg: Decimal, factor: number, days: number) =>
+    avg.times(new Decimal(factor * days)).toDecimalPlaces(2, Decimal.ROUND_UP);
 
 // Основная функция расчёта
 const calculateSickLeave = () => {
-  console.log('MainButton clicked'); // DEBUG
   error.value = '';
   result.value = null;
 
@@ -70,33 +52,24 @@ const calculateSickLeave = () => {
         thirdFactDays.value,
         seniority.value,
         sickLeaveDays.value,
-      ].some((v) => v === null)
+      ].some(v => v === null)
   ) {
     error.value = 'Заполните все поля';
     return;
   }
 
   try {
-    console.log('All fields filled, starting calculation'); // DEBUG
     mainButton.showMainButtonProgress(true);
 
     // Расчёт
-    const monthTotal = calculateTotal(
-        firstMonth.value!,
-        secondMonth.value!,
-        thirdMonth.value!
-    );
+    const monthTotal = calculateTotal(firstMonth.value!, secondMonth.value!, thirdMonth.value!);
     const factDaysTotal = calculateTotal(
         firstFactDays.value!,
         secondFactDays.value!,
         thirdFactDays.value!
     );
     const avg = calculateAverageSalaryPerDay(monthTotal, factDaysTotal);
-    const payment = calculateSickLeavePayment(
-        avg,
-        seniority.value!,
-        sickLeaveDays.value!
-    );
+    const payment = calculateSickLeavePayment(avg, seniority.value!, sickLeaveDays.value!);
 
     result.value = {
       monthTotal: monthTotal.toString(),
@@ -106,17 +79,25 @@ const calculateSickLeave = () => {
       coef: seniority.value!.toString(),
     };
 
-    console.log('Calculation result:', result.value); // DEBUG
-
     mainButton.setMainButtonText('✅ Готово');
     setTimeout(() => mainButton.setMainButtonText('Рассчитать'), 1500);
-  } catch (e) {
-    console.error('Error during calculation:', e);
+  } catch {
     showAlert('Ошибка при расчёте');
   } finally {
-    mainButton.hideMainButtonProgress();
+    mainButton.showMainButtonProgress(false);
   }
 };
+
+// Копирование в буфер обмена
+// const copyResult = async () => {
+//   if (!result.value) return;
+//   try {
+//     await window.Telegram.WebApp.writeTextToClipboard(result.value.sickLeavePayment);
+//     showAlert('Сумма скопирована в буфер');
+//   } catch {
+//     showAlert('Не удалось скопировать');
+//   }
+// };
 
 // Отправка результата боту
 const sendToBot = () => {
@@ -124,30 +105,27 @@ const sendToBot = () => {
   window.Telegram.WebApp.sendData(
       JSON.stringify({ type: 'sickLeave', value: result.value.sickLeavePayment })
   );
-  console.log('Sent to bot:', result.value.sickLeavePayment); // DEBUG
 };
 
 // Инициализация после mount
 onMounted(() => {
-  // Расширяем WebApp на весь экран
-  if (!webAppViewport.isExpanded.value) {
-    webAppViewport.expand();
-  }
+  // Расширяем WebApp под всю высоту
+  if (!webAppViewport.isExpanded.value) webAppViewport.expand();
 
-  // Читаем тему и ставим фон
+  // Читаем тему
   theme.value = window.Telegram.WebApp.themeParams;
   document.body.style.backgroundColor = theme.value.bg_color || '#ffffff';
 
-  // Показать BackButton
+  // Настраиваем BackButton
   window.Telegram.WebApp.BackButton.show();
   window.Telegram.WebApp.BackButton.onClick(() => {
     window.Telegram.WebApp.close();
   });
 
-  // Настроить MainButton
+  // Настроим MainButton
   mainButton.setMainButtonText('Рассчитать');
   mainButton.onMainButtonClicked(calculateSickLeave);
-  mainButton.showMainButton(); // Обязательно вызвать showMainButton
+  mainButton.showMainButton(); // <-- добавили показ кнопки
 });
 </script>
 
@@ -247,13 +225,12 @@ onMounted(() => {
       <p>Коэф. стажа: {{ result.coef }}</p>
       <p><b>К выплате: {{ result.sickLeavePayment }}</b></p>
 
-      <!-- Кнопка отправки результата в бота -->
-      <button class="action-btn" @click="sendToBot">
-        Отправить боту
-      </button>
+      <!-- Кнопки взаимодействия -->
+<!--      <button class="action-btn" @click="copyResult">Копировать сумму</button>-->
+      <button class="action-btn" @click="sendToBot">Отправить боту</button>
     </div>
 
-    <!-- MainButton отображается внизу автоматически внутри Telegram WebApp -->
+    <!-- MainButton автоматически встроится Telegram и будет виден внизу -->
   </div>
 </template>
 
