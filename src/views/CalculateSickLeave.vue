@@ -125,6 +125,7 @@ onMounted(() => {
   // Настроим MainButton
   mainButton.setMainButtonText('Рассчитать');
   mainButton.onMainButtonClicked(calculateSickLeave);
+  mainButton.showMainButton(); // <-- добавили показ кнопки
 });
 </script>
 
