@@ -14,7 +14,7 @@
     "vite-plugin-static-copy": "^1.0.6",
     "vue": "^3.4.31",
     "vue-router": "^4.4.2",
-    "vue-tg": "^0.7.0"
+    "vue-tg": "^0.8.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.5",
